@@ -1,0 +1,71 @@
+{
+  "name": "braided-react",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "React integration for Braided - Bridge your stateful systems to React without giving up lifecycle control. React observes, doesn't own.",
+  "main": "./dist/index.cjs",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "build": "zshy",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RegiByte/braided-react.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RegiByte/braided-react/issues"
+  },
+  "keywords": [
+    "react",
+    "braided",
+    "dependency-injection",
+    "lifecycle",
+    "resource-management",
+    "system-composition",
+    "integrant",
+    "stateful",
+    "hooks",
+    "context",
+    "testing",
+    "declarative"
+  ],
+  "homepage": "https://github.com/RegiByte/braided-react#readme",
+  "author": "RegiByte",
+  "license": "ISC",
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "braided": "^0.0.4"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.1.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^18.3.18",
+    "@vitest/coverage-v8": "^4.0.14",
+    "jsdom": "^25.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14",
+    "zshy": "^0.6.0"
+  },
+  "zshy": {
+    "exports": {
+      ".": "src/index.tsx"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.cts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  }
+}
