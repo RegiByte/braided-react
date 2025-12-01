@@ -8,7 +8,7 @@ React observes your system. React doesn't own it.
 
 ## What is Braided?
 
-[**Braided**](https://github.com/RegiByte/braided) is a minimal (~300 lines), type-safe library for declarative system composition with dependency-aware lifecycle management. It lets you define stateful resources (databases, WebSockets, caches, etc.) with explicit dependencies, and handles starting/stopping them in the correct order.
+[**Braided**](https://github.com/RegiByte/braided) is a minimal (~250 lines), type-safe library for declarative system composition with dependency-aware lifecycle management. It lets you define stateful resources (databases, WebSockets, caches, etc.) with explicit dependencies, and handles starting/stopping them in the correct order.
 
 Think of it as **dependency injection + lifecycle management** for JavaScript, inspired by Clojure's Integrant.
 
