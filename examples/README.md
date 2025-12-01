@@ -1,12 +1,12 @@
 # 🧶 Braided React Examples
 
-Three complete examples demonstrating different patterns for integrating Braided systems with React.
+Four complete examples demonstrating modern patterns for integrating Braided systems with React.
 
-## Examples
+## Examples Overview
 
-### 1. [Basic](./basic/) - Pre-Started System ⭐ **Start Here**
+### 1. [useSyncExternalStore](./basic/) - React 18 Integration ⭐ **Start Here**
 
-The recommended pattern: start the system before React mounts.
+Modern React integration using `useSyncExternalStore` API.
 
 ```bash
 cd basic
@@ -15,40 +15,18 @@ npm run dev
 ```
 
 **Shows:**
+- React 18's `useSyncExternalStore` API
+- Resources with `subscribe()` and `getSnapshot()` methods
+- Automatic re-renders without `useState` or `forceUpdate`
+- Clean, modern React patterns
 
-- System started before React
-- Full type inference
-- StrictMode compatibility
-- Clean separation of concerns
-
-**Best for:** Production apps, full lifecycle control
-
----
-
-### 2. [Singleton Manager](./singleton-manager/) - Lazy Initialization
-
-Module-level singleton pattern with lazy initialization.
-
-```bash
-cd singleton-manager
-npm install
-npm run dev
-```
-
-**Shows:**
-
-- Role-based systems (host vs player)
-- Lazy system startup
-- System persistence across navigation
-- Explicit cleanup control
-
-**Best for:** Multi-role apps, navigation persistence
+**Best for:** Modern React apps, learning the recommended pattern
 
 ---
 
-### 3. [Lazy Start](./lazy-start/) - React-Triggered Start
+### 2. [Zustand Integration](./lazy-start/) - Stores as Resources
 
-System starts when component mounts, with loading states.
+Zustand stores managed as Braided resources for centralized state.
 
 ```bash
 cd lazy-start
@@ -57,31 +35,153 @@ npm run dev
 ```
 
 **Shows:**
+- Zustand stores as Braided resources
+- Multiple stores coordinated through the system
+- Resources observing store changes
+- Stores persisting across React remounts
 
-- React-triggered startup
-- Loading states and fallbacks
-- Async resource initialization
-- Error handling callbacks
+**Best for:** Apps with complex state management, multiple stores
 
-**Best for:** Route-based loading, progressive enhancement
+---
+
+### 3. [Event Bus](./singleton-manager/) - Loose Coupling
+
+Resources communicating through an event bus for loose coupling.
+
+```bash
+cd singleton-manager
+npm install
+npm run dev
+```
+
+**Shows:**
+- Event-driven architecture
+- Resources communicating via pub/sub
+- Loose coupling between resources
+- Observable system behavior
+- Coordinated interactions without tight dependencies
+
+**Best for:** Complex systems, event-driven architectures, microservices-style apps
+
+---
+
+### 4. [Outliving React](./outliving-react/) - True Independence 🔥
+
+System that continues running even when React is unmounted.
+
+```bash
+cd outliving-react
+npm install
+npm run dev
+```
+
+**Shows:**
+- System persisting across React mount/unmount
+- Background tasks running independently
+- State preservation outside React
+- True separation of concerns
+- Interactive mount/unmount controls
+
+**Best for:** Music players, WebSocket apps, background sync, game engines
 
 ---
 
 ## Which Pattern Should I Use?
 
-| If you want to...                 | Use This Pattern      |
-| --------------------------------- | --------------------- |
-| Start system before React         | **Basic** ⭐          |
-| Full control over lifecycle       | **Basic** ⭐          |
-| Production-ready setup            | **Basic** ⭐          |
-| Role-based systems (host/player)  | **Singleton Manager** |
-| System persists across navigation | **Singleton Manager** |
-| Lazy initialization               | **Singleton Manager** |
-| React triggers system start       | **Lazy Start**        |
-| Route-based lazy loading          | **Lazy Start**        |
-| Built-in loading states           | **Lazy Start**        |
+| If you want to...                        | Use This Example          |
+| ---------------------------------------- | ------------------------- |
+| Learn modern React integration           | **useSyncExternalStore** ⭐ |
+| Automatic re-renders                     | **useSyncExternalStore** ⭐ |
+| Manage multiple Zustand stores           | **Zustand Integration**   |
+| Centralized state management             | **Zustand Integration**   |
+| Loose coupling between resources         | **Event Bus**             |
+| Event-driven architecture                | **Event Bus**             |
+| Resources that outlive React             | **Outliving React** 🔥    |
+| Background tasks independent of React    | **Outliving React** 🔥    |
+| Music players, WebSocket connections     | **Outliving React** 🔥    |
 
-## Common Patterns
+## Common Patterns Demonstrated
+
+### 1. **useSyncExternalStore Pattern** (Modern React)
+```typescript
+const counterResource = defineResource({
+  start: () => {
+    let count = 0
+    const listeners = new Set()
+    
+    return {
+      subscribe: (listener) => {
+        listeners.add(listener)
+        return () => listeners.delete(listener)
+      },
+      getSnapshot: () => count,
+      increment: () => {
+        count++
+        listeners.forEach(l => l())
+      }
+    }
+  }
+})
+
+// In component
+const counter = useResource('counter')
+const count = useSyncExternalStore(counter.subscribe, counter.getSnapshot)
+```
+
+### 2. **Stores as Resources Pattern** (Zustand)
+```typescript
+const storeResource = defineResource({
+  start: () => {
+    const useStore = create((set) => ({
+      count: 0,
+      increment: () => set((s) => ({ count: s.count + 1 }))
+    }))
+    return { useStore }
+  }
+})
+
+// In component
+const store = useResource('store')
+const { count, increment } = store.useStore()
+```
+
+### 3. **Event Bus Pattern** (Loose Coupling)
+```typescript
+const eventBusResource = defineResource({
+  start: () => {
+    const listeners = new Map()
+    return {
+      emit: (event, data) => listeners.get(event)?.forEach(h => h(data)),
+      on: (event, handler) => {
+        if (!listeners.has(event)) listeners.set(event, new Set())
+        listeners.get(event).add(handler)
+        return () => listeners.get(event).delete(handler)
+      }
+    }
+  }
+})
+
+// Resources communicate via events
+timerResource.emit('tick', Date.now())
+counterResource.on('tick', () => count++)
+```
+
+### 4. **Outliving React Pattern** (Independence)
+```typescript
+// System starts before React
+const { system } = await startSystem(config)
+
+// Mount React
+root.render(<SystemBridge system={system}><App /></SystemBridge>)
+
+// Unmount React (system keeps running!)
+root.unmount()
+
+// Remount React (state preserved!)
+root.render(<SystemBridge system={system}><App /></SystemBridge>)
+```
+
+## Core Principles
 
 All examples follow these principles:
 
@@ -89,27 +189,15 @@ All examples follow these principles:
 2. **Type-safe hooks** - Full inference from config to components
 3. **No ref counting** - System doesn't care about React's mount/unmount
 4. **Explicit cleanup** - Halt system when truly done, not on unmount
-
-## Running All Examples
-
-From the repo root:
-
-```bash
-# Install dependencies for all examples
-npm install
-
-# Run specific example
-cd examples/basic && npm install && npm run dev
-cd examples/singleton-manager && npm install && npm run dev
-cd examples/lazy-start && npm install && npm run dev
-```
+5. **StrictMode proof** - Resources survive double-mounting
 
 ## Learning Path
 
-1. **Day 1:** Run [Basic](./basic/) - understand the core pattern
-2. **Day 2:** Run [Singleton Manager](./singleton-manager/) - see lazy initialization
-3. **Day 3:** Run [Lazy Start](./lazy-start/) - explore React-triggered starts
-4. **Day 4:** Build your own! Mix and match patterns as needed
+1. **Day 1:** [useSyncExternalStore](./basic/) - Learn modern React integration
+2. **Day 2:** [Zustand Integration](./lazy-start/) - See centralized state management
+3. **Day 3:** [Event Bus](./singleton-manager/) - Understand loose coupling
+4. **Day 4:** [Outliving React](./outliving-react/) - Experience true independence
+5. **Day 5:** Build your own! Mix and match patterns as needed
 
 ## Tips
 
@@ -117,6 +205,33 @@ cd examples/lazy-start && npm install && npm run dev
 - Try React DevTools to see how systems are just context
 - Experiment with StrictMode - systems survive double-mounting
 - Check the README in each example for specific details
+- The "Outliving React" example has interactive mount/unmount controls!
+
+## Real-World Use Cases
+
+### useSyncExternalStore
+- Modern React apps
+- Clean component integration
+- Automatic reactivity
+
+### Zustand Integration
+- Complex state management
+- Multiple coordinated stores
+- E-commerce apps, dashboards
+
+### Event Bus
+- Microservices-style architecture
+- Plugin systems
+- Complex coordinated workflows
+- Real-time collaboration apps
+
+### Outliving React
+- Music/video players
+- WebSocket/WebRTC connections
+- Background sync
+- Game engines
+- Session management
+- Real-time chat
 
 ---
 

@@ -1,94 +1,264 @@
 /**
- * System Configurations - Host and Player
+ * System Configuration - Event Bus Communication
  *
- * This example shows how to manage multiple system configurations
- * (like host vs player in a multiplayer game).
+ * This example shows how resources communicate through an event bus,
+ * demonstrating loose coupling and coordination outside of React.
  */
 
-import { defineResource } from 'braided-react/braided'
-import type { StartedResource } from 'braided-react'
+import { defineResource, StartedResource } from "braided";
 
 /**
- * Config Resource - Different for host vs player
+ * Event Bus Resource
+ *
+ * Central event emitter that allows resources to communicate.
+ * Resources can emit events and subscribe to events from other resources.
  */
-export const hostConfigResource = defineResource({
+export const eventBusResource = defineResource({
   start: () => {
-    console.log('⚙️  Host config starting...')
-    return {
-      role: 'host' as const,
-      maxPlayers: 8,
-      isHost: true,
-    }
-  },
-  halt: () => {
-    console.log('⚙️  Host config halting')
-  },
-})
+    console.log("📡 Event bus starting...");
 
-export const playerConfigResource = defineResource({
-  start: () => {
-    console.log('⚙️  Player config starting...')
-    return {
-      role: 'player' as const,
-      playerId: Math.random().toString(36).substring(7),
-      isHost: false,
-    }
-  },
-  halt: () => {
-    console.log('⚙️  Player config halting')
-  },
-})
-
-/**
- * Session Store - Depends on config
- */
-export const sessionStoreResource = defineResource<{
-  config: StartedResource<typeof hostConfigResource | typeof playerConfigResource>
-}>({
-  dependencies: ['config'],
-  start: ({ config }) => {
-    console.log(`📦 Session store starting (role: ${config.role})...`)
-    const state = {
-      connected: false,
-      sessionId: null as string | null,
-    }
+    type EventHandler = (...args: any[]) => void;
+    const listeners = new Map<string, Set<EventHandler>>();
 
     return {
-      get state() {
-        return { ...state }
+      emit(event: string, ...args: any[]) {
+        console.log(`📡 Event emitted: ${event}`, args);
+        const handlers = listeners.get(event);
+        if (handlers) {
+          handlers.forEach((handler) => handler(...args));
+        }
       },
-      connect(sessionId: string) {
-        state.connected = true
-        state.sessionId = sessionId
-        console.log(`📦 Connected to session: ${sessionId}`)
+      on(event: string, handler: EventHandler) {
+        if (!listeners.has(event)) {
+          listeners.set(event, new Set());
+        }
+        listeners.get(event)!.add(handler);
+        console.log(`📡 Listener added for: ${event}`);
+        return () => {
+          listeners.get(event)?.delete(handler);
+          console.log(`📡 Listener removed for: ${event}`);
+        };
       },
-      disconnect() {
-        state.connected = false
-        state.sessionId = null
-        console.log('📦 Disconnected from session')
+      getListenerCount(event: string) {
+        return listeners.get(event)?.size || 0;
       },
-    }
+      cleanup() {
+        listeners.clear();
+      },
+    };
   },
-  halt: (store) => {
-    console.log('📦 Session store halting')
-    store.disconnect()
+  halt: (bus) => {
+    console.log("📡 Event bus halting");
+    bus.cleanup();
   },
-})
+});
 
 /**
- * Host System Configuration
+ * Timer Resource
+ *
+ * Emits tick events every second.
+ * Demonstrates a resource that produces events.
  */
-export const hostSystemConfig = {
-  config: hostConfigResource,
-  sessionStore: sessionStoreResource,
-}
+export const timerResource = defineResource({
+  dependencies: ["eventBus"],
+  start: ({
+    eventBus,
+  }: {
+    eventBus: StartedResource<typeof eventBusResource>;
+  }) => {
+    console.log("⏰ Timer starting...");
+
+    let ticks = 0;
+    let running = false;
+    let intervalId: number | null = null;
+
+    return {
+      start() {
+        if (running) return;
+        running = true;
+        intervalId = window.setInterval(() => {
+          ticks++;
+          eventBus.emit("timer:tick", ticks);
+        }, 1000);
+        eventBus.emit("timer:started");
+        console.log("⏰ Timer started");
+      },
+      stop() {
+        if (!running) return;
+        running = false;
+        if (intervalId !== null) {
+          clearInterval(intervalId);
+          intervalId = null;
+          eventBus.emit("timer:stopped");
+        }
+        console.log("⏰ Timer stopped");
+      },
+      reset() {
+        ticks = 0;
+        eventBus.emit("timer:reset");
+        console.log("⏰ Timer reset");
+      },
+      getTicks: () => ticks,
+      isRunning: () => running,
+    };
+  },
+  halt: (timer) => {
+    timer.stop();
+    console.log("⏰ Timer halting");
+  },
+});
 
 /**
- * Player System Configuration
+ * Counter Resource
+ *
+ * Listens to timer ticks and increments a counter.
+ * Demonstrates a resource that consumes events.
  */
-export const playerSystemConfig = {
-  config: playerConfigResource,
-  sessionStore: sessionStoreResource,
-}
+export const counterResource = defineResource({
+  dependencies: ["eventBus"],
+  start: ({
+    eventBus,
+  }: {
+    eventBus: StartedResource<typeof eventBusResource>;
+  }) => {
+    console.log("🔢 Counter starting...");
 
+    let count = 0;
+    const listeners = new Set<() => void>();
 
+    const notify = () => {
+      listeners.forEach((listener) => listener());
+    };
+
+    // Listen to timer ticks
+    const unsubTick = eventBus.on("timer:tick", (ticks: number) => {
+      count++;
+      notify();
+      console.log(`🔢 Counter incremented on tick ${ticks}: ${count}`);
+    });
+
+    // Listen to timer reset
+    const unsubReset = eventBus.on("timer:reset", () => {
+      count = 0;
+      notify();
+      console.log("🔢 Counter reset");
+    });
+
+    return {
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      getSnapshot: () => count,
+      getCount: () => count,
+      increment() {
+        count++;
+        notify();
+        eventBus.emit("counter:changed", count);
+      },
+      reset() {
+        count = 0;
+        notify();
+        eventBus.emit("counter:changed", count);
+      },
+      cleanup: () => {
+        unsubTick();
+        unsubReset();
+      },
+    };
+  },
+  halt: (counter) => {
+    counter.cleanup();
+    console.log(`🔢 Counter halting (final count: ${counter.getCount()})`);
+  },
+});
+
+/**
+ * Logger Resource
+ *
+ * Listens to all events and logs them.
+ * Demonstrates a resource that observes the entire system.
+ */
+export const loggerResource = defineResource({
+  dependencies: ["eventBus"],
+  start: ({
+    eventBus,
+  }: {
+    eventBus: StartedResource<typeof eventBusResource>;
+  }) => {
+    console.log("📝 Logger starting...");
+
+    let logs: string[] = [];
+    const listeners = new Set<() => void>();
+
+    const notify = () => {
+      listeners.forEach((listener) => listener());
+    };
+
+    const addLog = (message: string) => {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = `[${timestamp}] ${message}`;
+      logs = [...logs, entry];
+      notify();
+    };
+
+    // Listen to all events
+    const unsubTick = eventBus.on("timer:tick", (ticks: number) => {
+      addLog(`Timer tick: ${ticks}`);
+    });
+
+    const unsubReset = eventBus.on("timer:reset", () => {
+      addLog("Timer reset");
+    });
+
+    const unsubCounter = eventBus.on("counter:changed", (count: number) => {
+      addLog(`Counter changed: ${count}`);
+    });
+
+    const unsubStopped = eventBus.on("timer:stopped", () => {
+      addLog("Timer stopped");
+    });
+
+    const unsubStarted = eventBus.on("timer:started", () => {
+      addLog("Timer started");
+    });
+
+    return {
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      getSnapshot: () => logs,
+      getLogs: () => [...logs],
+      clear() {
+        logs = [];
+        notify();
+        console.log("📝 Logs cleared");
+      },
+      cleanup: () => {
+        unsubTick();
+        unsubReset();
+        unsubCounter();
+        unsubStopped();
+        unsubStarted();
+      },
+    };
+  },
+  halt: (logger) => {
+    logger.cleanup();
+    console.log(`📝 Logger halting (${logger.getLogs().length} logs recorded)`);
+  },
+});
+
+/**
+ * System Configuration
+ *
+ * All resources communicate through the event bus.
+ * No resource directly depends on another (except eventBus).
+ */
+export const systemConfig = {
+  eventBus: eventBusResource,
+  timer: timerResource,
+  counter: counterResource,
+  logger: loggerResource,
+};

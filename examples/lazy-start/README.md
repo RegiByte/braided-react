@@ -1,23 +1,19 @@
-# Lazy Start Example
+# Zustand Integration Example
 
-This example demonstrates the **lazy start pattern** using `LazySystemBridge`:
+This example demonstrates **managing Zustand stores as Braided resources**:
 
-1. System starts when the component mounts
-2. Flexible lifecycle management with three patterns
-3. Useful for route-based lazy loading
+1. Zustand stores are created in the system, not in components
+2. Multiple stores can be coordinated through the system
+3. Other resources can observe and react to store changes
+4. Stores persist across React remounts and StrictMode
 
 ## Key Concepts
 
-- **React-triggered start** - System starts on mount, not before
-- **Flexible cleanup** - Choose your lifecycle pattern
-- **Loading states** - Show fallback while system starts
-- **Error handling** - Handle startup errors gracefully
-
-## Use Cases
-
-- **Route-based loading** - Start system when entering a route
-- **Conditional systems** - Only start if user takes certain action
-- **Progressive enhancement** - Start heavy systems on demand
+- **Stores as Resources** - Zustand stores are Braided resources
+- **Centralized State** - All stores live in the system
+- **Cross-Resource Observation** - Resources can subscribe to store changes
+- **Persistence** - Stores survive component unmounts
+- **Type Safety** - Full TypeScript inference
 
 ## Running the Example
 
@@ -28,70 +24,53 @@ npm run dev
 
 Open http://localhost:5173
 
-## Three Lifecycle Patterns
+## File Structure
 
-### 1. With Manager (Recommended for Persistent Systems)
+- `system.ts` - System configuration with Zustand stores as resources
+- `hooks.ts` - Typed hooks created with `createSystemHooks`
+- `App.tsx` - React app that uses the stores
+- `main.tsx` - Entry point that starts system before React
 
-```typescript
-import { createSystemManager } from 'braided-react'
-
-const manager = createSystemManager(systemConfig)
-
-<LazySystemBridge
-  manager={manager}
-  SystemBridge={SystemBridge}
-  fallback={<LoadingScreen />}
->
-  <App />
-</LazySystemBridge>
-
-// Cleanup when truly done
-await manager.destroySystem()
-```
-
-**Benefits:**
-- Idempotent - survives remounts
-- Explicit cleanup control
-- Perfect for navigation persistence
-
-### 2. With onUnmount Callback (Explicit Cleanup)
+## The Pattern
 
 ```typescript
-import { haltSystem } from 'braided'
+// 1. Define store as a resource
+const counterStoreResource = defineResource({
+  start: () => {
+    const useCounterStore = create((set) => ({
+      count: 0,
+      increment: () => set((state) => ({ count: state.count + 1 }))
+    }))
+    
+    return { useCounterStore }
+  }
+})
 
-<LazySystemBridge
-  config={systemConfig}
-  SystemBridge={SystemBridge}
-  onUnmount={(system) => haltSystem(systemConfig, system)}
->
-  <App />
-</LazySystemBridge>
+// 2. Use in components
+function Counter() {
+  const counterStore = useResource('counterStore')
+  const { count, increment } = counterStore.useCounterStore()
+  
+  return (
+    <div>
+      <p>{count}</p>
+      <button onClick={increment}>+</button>
+    </div>
+  )
+}
 ```
 
-**Benefits:**
-- System halts when component unmounts
-- Good for temporary systems
-- Custom cleanup logic
-
-### 3. Standalone (System Lives Beyond Component)
-
-```typescript
-<LazySystemBridge
-  config={systemConfig}
-  SystemBridge={SystemBridge}
-  fallback={<LoadingScreen />}
->
-  <App />
-</LazySystemBridge>
-```
+## Why This Pattern?
 
 **Benefits:**
-- Simplest API
-- System persists after unmount
-- Cleanup managed elsewhere
+- ✅ Stores persist across remounts
+- ✅ Centralized state management
+- ✅ Resources can observe stores
+- ✅ Easy to coordinate multiple stores
+- ✅ Type-safe from system to components
 
-## This Example
-
-This example uses the **standalone pattern** - the system starts on mount but doesn't halt on unmount. This is perfect for route-based loading where you want the system to persist across navigation.
-
-
+**Use this when:**
+- You need stores that survive React lifecycle
+- You want to coordinate multiple stores
+- Other resources need to react to state changes
+- You're building complex, long-lived applications

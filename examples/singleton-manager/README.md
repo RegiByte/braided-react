@@ -1,23 +1,19 @@
-# Singleton Manager Example
+# Event Bus Example
 
-This example demonstrates the **singleton manager pattern** - useful when you want:
+This example demonstrates **resource communication through an event bus**:
 
-1. System to start lazily (on first use, not at app boot)
-2. System to be reused across multiple React mount/unmount cycles
-3. Explicit control over when to destroy the system
+1. Resources communicate via events, not direct dependencies
+2. Loose coupling allows resources to evolve independently
+3. Event bus enables observable, coordinated systems
+4. Resources can emit and subscribe to events outside of React
 
 ## Key Concepts
 
-- **Module-level singleton** - System manager lives outside React
-- **Lazy initialization** - System starts on first `getSystem()` call
-- **Idempotent** - Multiple calls to `getSystem()` return the same instance
-- **Explicit cleanup** - Call `destroySystem()` when truly done
-
-## Use Cases
-
-- **Role-based systems** - Different system configs for host vs player
-- **Navigation** - System persists across route changes
-- **Hot reload** - System survives HMR in development
+- **Event Bus** - Central hub for resource communication
+- **Pub/Sub Pattern** - Resources emit events, others subscribe
+- **Loose Coupling** - Resources don't directly depend on each other
+- **Observable System** - Easy to add observers without modifying resources
+- **Coordination** - Complex interactions without tight coupling
 
 ## Running the Example
 
@@ -28,19 +24,92 @@ npm run dev
 
 Open http://localhost:5173
 
+## File Structure
+
+- `system.ts` - System configuration with event bus and resources
+- `hooks.ts` - Typed hooks created with `createSystemHooks`
+- `App.tsx` - React app that uses the system
+- `main.tsx` - Entry point that starts system before React
+
 ## The Pattern
 
 ```typescript
-// 1. Create manager at module level
-const systemManager = createSystemManager(config)
+// 1. Define event bus resource
+const eventBusResource = defineResource({
+  start: () => {
+    const listeners = new Map()
+    
+    return {
+      emit(event, ...args) {
+        listeners.get(event)?.forEach(handler => handler(...args))
+      },
+      on(event, handler) {
+        if (!listeners.has(event)) {
+          listeners.set(event, new Set())
+        }
+        listeners.get(event).add(handler)
+        return () => listeners.get(event).delete(handler)
+      }
+    }
+  }
+})
 
-// 2. In components, get the system
-const system = await systemManager.getSystem()
+// 2. Resources emit events
+const timerResource = defineResource({
+  dependencies: ['eventBus'],
+  start: ({ eventBus }) => {
+    setInterval(() => {
+      eventBus.emit('timer:tick', Date.now())
+    }, 1000)
+    
+    return { /* ... */ }
+  }
+})
 
-// 3. When done (e.g., logout), destroy it
-await systemManager.destroySystem()
+// 3. Resources listen to events
+const counterResource = defineResource({
+  dependencies: ['eventBus'],
+  start: ({ eventBus }) => {
+    let count = 0
+    
+    eventBus.on('timer:tick', () => {
+      count++
+    })
+    
+    return { getCount: () => count }
+  }
+})
 ```
 
-This pattern is what you used in your game, Sir RegiByte!
+## Why This Pattern?
 
+**Benefits:**
+- ✅ Loose coupling between resources
+- ✅ Easy to add new observers
+- ✅ Resources evolve independently
+- ✅ Clear communication patterns
+- ✅ Observable system behavior
 
+**Use this when:**
+- You have multiple resources that need to coordinate
+- You want to avoid tight coupling between resources
+- You need to add observers without modifying existing code
+- You're building complex, event-driven systems
+- You want clear separation of concerns
+
+## Architecture
+
+```
+┌─────────────┐
+│  Event Bus  │ ← Central hub
+└──────┬──────┘
+       │
+   ┌───┴───┬────────┬────────┐
+   │       │        │        │
+┌──▼──┐ ┌──▼──┐ ┌───▼───┐ ┌──▼──┐
+│Timer│ │Count│ │Logger │ │React│
+└─────┘ └─────┘ └───────┘ └─────┘
+  emit    listen   listen   observe
+```
+
+Resources communicate through events, not direct calls!

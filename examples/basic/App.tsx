@@ -1,21 +1,28 @@
 /**
  * React Application
  *
- * Components that use the system via hooks. Notice how we don't manage
- * any lifecycle here - we just use the resources.
+ * Components that use the system via hooks with useSyncExternalStore.
+ * Notice how we don't manage any lifecycle here - we just use the resources.
+ *
+ * This example demonstrates React 18's useSyncExternalStore API for
+ * subscribing to external state sources (our Braided resources).
  */
 
-import { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import { useResource } from "./hooks";
 
 /**
  * Counter Display Component
  *
- * Demonstrates accessing a single resource with useResource.
+ * Demonstrates useSyncExternalStore with a Braided resource.
+ * The counter resource provides subscribe() and getSnapshot() methods.
+ * React automatically re-renders when the counter changes.
  */
 function CounterDisplay() {
   const counter = useResource("counter");
-  const [, forceUpdate] = useState({});
+
+  // Subscribe to counter changes using React 18's useSyncExternalStore
+  const count = useSyncExternalStore(counter.subscribe, counter.getSnapshot);
 
   return (
     <div
@@ -26,13 +33,10 @@ function CounterDisplay() {
       }}
     >
       <h2>🔢 Counter</h2>
-      <p style={{ fontSize: "48px", margin: "20px 0" }}>{counter.count}</p>
+      <p style={{ fontSize: "48px", margin: "20px 0" }}>{count}</p>
       <div style={{ display: "flex", gap: "10px" }}>
         <button
-          onClick={() => {
-            counter.increment();
-            forceUpdate({});
-          }}
+          onClick={() => counter.increment()}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
@@ -46,10 +50,7 @@ function CounterDisplay() {
           Increment
         </button>
         <button
-          onClick={() => {
-            counter.reset();
-            forceUpdate({});
-          }}
+          onClick={() => counter.reset()}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
@@ -71,11 +72,13 @@ function CounterDisplay() {
  * Logger Display Component
  *
  * Demonstrates accessing multiple resources and their interactions.
+ * Both logger and counter use useSyncExternalStore for reactivity.
  */
 function LoggerDisplay() {
   const logger = useResource("logger");
-  const counter = useResource("counter");
-  const [, forceUpdate] = useState({});
+
+  // Subscribe to logger changes
+  const logs = useSyncExternalStore(logger.subscribe, logger.getSnapshot);
 
   return (
     <div
@@ -88,10 +91,7 @@ function LoggerDisplay() {
       <h2>📝 Logger</h2>
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
         <button
-          onClick={() => {
-            logger.log("Hello from React!");
-            forceUpdate({});
-          }}
+          onClick={() => logger.log("Hello from React!")}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
@@ -105,10 +105,7 @@ function LoggerDisplay() {
           Log Message
         </button>
         <button
-          onClick={() => {
-            logger.logCount();
-            forceUpdate({});
-          }}
+          onClick={() => logger.logCount()}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
@@ -122,10 +119,7 @@ function LoggerDisplay() {
           Log Count
         </button>
         <button
-          onClick={() => {
-            logger.clear();
-            forceUpdate({});
-          }}
+          onClick={() => logger.clear()}
           style={{
             padding: "10px 20px",
             fontSize: "16px",
@@ -151,10 +145,10 @@ function LoggerDisplay() {
           overflowY: "auto",
         }}
       >
-        {logger.logs.length === 0 ? (
+        {logs.length === 0 ? (
           <div style={{ color: "#6b7280" }}>No logs yet...</div>
         ) : (
-          logger.logs.map((log, i) => <div key={i}>{log}</div>)
+          logs.map((log, i) => <div key={i}>{log}</div>)
         )}
       </div>
     </div>
@@ -167,9 +161,12 @@ function LoggerDisplay() {
 export function App() {
   return (
     <div style={{ padding: "40px", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 style={{ marginBottom: "10px" }}>🧶 Braided React - Basic Example</h1>
+      <h1 style={{ marginBottom: "10px" }}>
+        🧶 Braided React - useSyncExternalStore
+      </h1>
       <p style={{ color: "#6b7280", marginBottom: "40px" }}>
-        System started before React. Components observe, don't control.
+        Using React 18's useSyncExternalStore to subscribe to Braided resources.
+        No useState, no forceUpdate - just pure reactive subscriptions.
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -185,15 +182,25 @@ export function App() {
           borderRadius: "8px",
         }}
       >
-        <h3 style={{ marginTop: 0 }}>💡 Try This:</h3>
+        <h3 style={{ marginTop: 0 }}>💡 Key Concepts:</h3>
         <ol style={{ marginBottom: 0 }}>
-          <li>Open DevTools console to see system lifecycle logs</li>
-          <li>Increment the counter and log its value</li>
-          <li>Notice how resources maintain state across re-renders</li>
           <li>
-            Try opening React DevTools - you'll see the system is just context,
-            not state
+            <strong>useSyncExternalStore:</strong> React 18 API for subscribing
+            to external state
           </li>
+          <li>
+            <strong>subscribe():</strong> Resources provide a subscribe method
+            that React calls
+          </li>
+          <li>
+            <strong>getSnapshot():</strong> Returns current state, called on
+            every render
+          </li>
+          <li>
+            <strong>Automatic re-renders:</strong> No useState or manual render
+            needed!
+          </li>
+          <li>Open DevTools console to see system lifecycle logs</li>
         </ol>
       </div>
     </div>

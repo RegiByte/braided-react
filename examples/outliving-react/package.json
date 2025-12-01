@@ -1,5 +1,5 @@
 {
-  "name": "braided-react-example-event-bus",
+  "name": "braided-react-example-outliving-react",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -22,3 +22,4 @@
     "vite": "^6.0.5"
   }
 }
+

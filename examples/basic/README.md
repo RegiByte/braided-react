@@ -1,14 +1,18 @@
-# Basic Example - Pre-Started System
+# Basic Example - useSyncExternalStore
 
-This example demonstrates the **recommended pattern** for using `braided-react`:
+This example demonstrates using **React 18's useSyncExternalStore** with Braided resources:
 
 1. Start the system **before** React mounts
-2. Pass the started system to `SystemBridge`
-3. React observes the system, doesn't control it
+2. Resources provide `subscribe()` and `getSnapshot()` methods
+3. Components use `useSyncExternalStore` for automatic reactivity
+4. No `useState` or `forceUpdate` hacks needed!
 
 ## Key Concepts
 
-- **System lives outside React** - Started independently, lives beyond component lifecycles
+- **useSyncExternalStore** - React 18 API for subscribing to external state sources
+- **subscribe(listener)** - Resources notify React when state changes
+- **getSnapshot()** - Returns current state for rendering
+- **Automatic re-renders** - React handles updates efficiently
 - **Type-safe hooks** - Full TypeScript inference from config to components
 - **StrictMode proof** - React can mount/unmount freely, system stays alive
 
@@ -31,21 +35,38 @@ Open http://localhost:5173
 ## The Pattern
 
 ```typescript
-// 1. Define system outside React
-const system = await startSystem(config)
+// 1. Define resource with subscribe/getSnapshot
+const counterResource = defineResource({
+  start: () => {
+    let count = 0;
+    const listeners = new Set();
 
-// 2. Mount React with the system
-<SystemBridge system={system}>
-  <App />
-</SystemBridge>
+    return {
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      getSnapshot: () => count,
+      increment: () => {
+        count++;
+        listeners.forEach((l) => l()); // Notify subscribers
+      },
+    };
+  },
+});
 
-// 3. Use in components
-function MyComponent() {
-  const resource = useResource('resourceName')
-  // Fully typed!
+// 2. Use in components with useSyncExternalStore
+function Counter() {
+  const counter = useResource("counter");
+  const count = useSyncExternalStore(counter.subscribe, counter.getSnapshot);
+
+  return (
+    <div>
+      <p>{count}</p>
+      <button onClick={() => counter.increment()}>+</button>
+    </div>
+  );
 }
 ```
 
-This is the cleanest approach - React is purely a view layer.
-
-
+This is the **modern React way** to integrate external state sources!

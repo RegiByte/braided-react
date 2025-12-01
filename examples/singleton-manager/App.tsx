@@ -1,300 +1,330 @@
 /**
- * React Application - Role Switcher
+ * React Application - Event Bus Communication
  *
- * Demonstrates switching between host and player systems,
- * with the systems managed by singleton managers.
+ * Resources communicate through an event bus, demonstrating
+ * loose coupling and coordination outside of React.
  */
 
-import { useState, useEffect } from 'react'
-import { hostSystemManager, playerSystemManager } from './managers'
-import {
-  HostSystemBridge,
-  PlayerSystemBridge,
-  useHostResource,
-  usePlayerResource,
-} from './hooks'
-import type { StartedSystem } from 'braided-react'
-import type { hostSystemConfig, playerSystemConfig } from './system'
-
-type Role = 'host' | 'player' | null
+import React, { useEffect, useState, useSyncExternalStore } from "react";
+import { useResource } from "./hooks";
 
 /**
- * Host View Component
+ * Timer Controls Component
+ *
+ * Controls the timer resource that emits tick events.
  */
-function HostView() {
-  const config = useHostResource('config')
-  const sessionStore = useHostResource('sessionStore')
-  const [, forceUpdate] = useState({})
+function TimerControls() {
+  const timer = useResource("timer");
+  const eventBus = useResource("eventBus");
+  const [_, forceRender] = useState({});
+
+  useEffect(() => {
+    if (!eventBus) return;
+    const unsubscribeTick = eventBus.on("timer:tick", (ticks: number) => {
+      forceRender({});
+    });
+    const unsubscribeStopped = eventBus.on("timer:stopped", () => {
+      forceRender({});
+    });
+    return () => {
+      unsubscribeTick();
+      unsubscribeStopped();
+    };
+  }, []);
 
   return (
-    <div style={{ padding: '20px', border: '2px solid #3b82f6', borderRadius: '8px' }}>
-      <h2>🎮 Host Mode</h2>
-      <div style={{ marginBottom: '20px' }}>
+    <div
+      style={{
+        padding: "20px",
+        border: "2px solid #3b82f6",
+        borderRadius: "8px",
+      }}
+    >
+      <h2>⏰ Timer</h2>
+      <p style={{ color: "#6b7280", marginBottom: "10px" }}>
+        Emits "timer:tick" events every second
+      </p>
+      <div style={{ marginBottom: "10px" }}>
         <p>
-          <strong>Role:</strong> {config.role}
+          <strong>Ticks:</strong> {timer.getTicks()}
         </p>
         <p>
-          <strong>Max Players:</strong> {config.maxPlayers}
+          <strong>Status:</strong>{" "}
+          {timer.isRunning() ? "🟢 Running" : "🔴 Stopped"}
         </p>
         <p>
-          <strong>Connected:</strong>{' '}
-          {sessionStore.state.connected ? '✅ Yes' : '❌ No'}
+          <strong>Listeners:</strong> {eventBus.getListenerCount("timer:tick")}
         </p>
-        {sessionStore.state.sessionId && (
-          <p>
-            <strong>Session ID:</strong> {sessionStore.state.sessionId}
-          </p>
-        )}
       </div>
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: "flex", gap: "10px" }}>
         <button
-          onClick={() => {
-            sessionStore.connect(`host-${Date.now()}`)
-            forceUpdate({})
-          }}
-          disabled={sessionStore.state.connected}
+          onClick={() => timer.start()}
+          disabled={timer.isRunning()}
           style={{
-            padding: '10px 20px',
-            cursor: sessionStore.state.connected ? 'not-allowed' : 'pointer',
-            opacity: sessionStore.state.connected ? 0.5 : 1,
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: timer.isRunning() ? "not-allowed" : "pointer",
+            opacity: timer.isRunning() ? 0.5 : 1,
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
           }}
         >
-          Start Session
+          Start
         </button>
         <button
-          onClick={() => {
-            sessionStore.disconnect()
-            forceUpdate({})
-          }}
-          disabled={!sessionStore.state.connected}
+          onClick={() => timer.stop()}
+          disabled={!timer.isRunning()}
           style={{
-            padding: '10px 20px',
-            cursor: !sessionStore.state.connected ? 'not-allowed' : 'pointer',
-            opacity: !sessionStore.state.connected ? 0.5 : 1,
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: !timer.isRunning() ? "not-allowed" : "pointer",
+            opacity: !timer.isRunning() ? 0.5 : 1,
+            backgroundColor: "#ef4444",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
           }}
         >
-          End Session
+          Stop
+        </button>
+        <button
+          onClick={() => timer.reset()}
+          style={{
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "#8b5cf6",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+          }}
+        >
+          Reset
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 /**
- * Player View Component
+ * Counter Display Component
+ *
+ * Listens to timer ticks and increments automatically.
  */
-function PlayerView() {
-  const config = usePlayerResource('config')
-  const sessionStore = usePlayerResource('sessionStore')
-  const [, forceUpdate] = useState({})
+function CounterDisplay() {
+  const counter = useResource("counter");
+  const eventBus = useResource("eventBus");
+
+  // Subscribe to counter changes
+  const count = useSyncExternalStore(counter.subscribe, counter.getSnapshot);
 
   return (
-    <div style={{ padding: '20px', border: '2px solid #10b981', borderRadius: '8px' }}>
-      <h2>👤 Player Mode</h2>
-      <div style={{ marginBottom: '20px' }}>
+    <div
+      style={{
+        padding: "20px",
+        border: "2px solid #10b981",
+        borderRadius: "8px",
+      }}
+    >
+      <h2>🔢 Counter</h2>
+      <p style={{ color: "#6b7280", marginBottom: "10px" }}>
+        Listens to "timer:tick" events and increments
+      </p>
+      <p style={{ fontSize: "48px", margin: "20px 0" }}>{count}</p>
+      <div style={{ marginBottom: "10px" }}>
         <p>
-          <strong>Role:</strong> {config.role}
+          <strong>Event Listeners:</strong>{" "}
+          {eventBus.getListenerCount("counter:changed")}
         </p>
-        <p>
-          <strong>Player ID:</strong> {config.playerId}
-        </p>
-        <p>
-          <strong>Connected:</strong>{' '}
-          {sessionStore.state.connected ? '✅ Yes' : '❌ No'}
-        </p>
-        {sessionStore.state.sessionId && (
-          <p>
-            <strong>Session ID:</strong> {sessionStore.state.sessionId}
-          </p>
-        )}
       </div>
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: "flex", gap: "10px" }}>
         <button
-          onClick={() => {
-            sessionStore.connect(`player-${Date.now()}`)
-            forceUpdate({})
-          }}
-          disabled={sessionStore.state.connected}
+          onClick={() => counter.increment()}
           style={{
-            padding: '10px 20px',
-            cursor: sessionStore.state.connected ? 'not-allowed' : 'pointer',
-            opacity: sessionStore.state.connected ? 0.5 : 1,
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "#10b981",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
           }}
         >
-          Join Session
+          Manual +1
         </button>
         <button
-          onClick={() => {
-            sessionStore.disconnect()
-            forceUpdate({})
-          }}
-          disabled={!sessionStore.state.connected}
+          onClick={() => counter.reset()}
           style={{
-            padding: '10px 20px',
-            cursor: !sessionStore.state.connected ? 'not-allowed' : 'pointer',
-            opacity: !sessionStore.state.connected ? 0.5 : 1,
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "#ef4444",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
           }}
         >
-          Leave Session
+          Reset
         </button>
       </div>
     </div>
-  )
+  );
 }
 
 /**
- * Role Selector Component
+ * Logger Display Component
+ *
+ * Listens to all events and displays them.
  */
-function RoleSelector({
-  onSelectRole,
-}: {
-  onSelectRole: (role: 'host' | 'player') => void
-}) {
+function LoggerDisplay() {
+  const logger = useResource("logger");
+
+  // Subscribe to logger changes
+  const logs = useSyncExternalStore(logger.subscribe, logger.getSnapshot);
+
   return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h2>Select Your Role</h2>
-      <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '20px' }}>
+    <div
+      style={{
+        padding: "20px",
+        border: "2px solid #8b5cf6",
+        borderRadius: "8px",
+      }}
+    >
+      <h2>📝 Event Logger</h2>
+      <p style={{ color: "#6b7280", marginBottom: "10px" }}>
+        Listens to all events in the system
+      </p>
+      <div style={{ marginBottom: "10px" }}>
         <button
-          onClick={() => onSelectRole('host')}
+          onClick={() => logger.clear()}
           style={{
-            padding: '20px 40px',
-            fontSize: '18px',
-            cursor: 'pointer',
-            backgroundColor: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: "pointer",
+            backgroundColor: "#ef4444",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
           }}
         >
-          🎮 Host Game
-        </button>
-        <button
-          onClick={() => onSelectRole('player')}
-          style={{
-            padding: '20px 40px',
-            fontSize: '18px',
-            cursor: 'pointer',
-            backgroundColor: '#10b981',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-          }}
-        >
-          👤 Join Game
+          Clear Logs
         </button>
       </div>
+      <div
+        style={{
+          backgroundColor: "#1f2937",
+          color: "#8b5cf6",
+          padding: "15px",
+          borderRadius: "4px",
+          fontFamily: "monospace",
+          fontSize: "14px",
+          maxHeight: "300px",
+          overflowY: "auto",
+        }}
+      >
+        {logs.length === 0 ? (
+          <div style={{ color: "#6b7280" }}>No events yet...</div>
+        ) : (
+          logs.map((log, i) => <div key={i}>{log}</div>)
+        )}
+      </div>
     </div>
-  )
+  );
+}
+
+/**
+ * Event Bus Info Component
+ *
+ * Shows information about the event bus.
+ */
+function EventBusInfo() {
+  const eventBus = useResource("eventBus");
+
+  return (
+    <div
+      style={{
+        padding: "20px",
+        backgroundColor: "#f3f4f6",
+        borderRadius: "8px",
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>📡 Event Bus Status</h3>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}
+      >
+        <div>
+          <strong>timer:tick listeners:</strong>{" "}
+          {eventBus.getListenerCount("timer:tick")}
+        </div>
+        <div>
+          <strong>timer:reset listeners:</strong>{" "}
+          {eventBus.getListenerCount("timer:reset")}
+        </div>
+        <div>
+          <strong>counter:changed listeners:</strong>{" "}
+          {eventBus.getListenerCount("counter:changed")}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
  * Main App Component
  */
 export function App() {
-  const [role, setRole] = useState<Role>(null)
-  const [system, setSystem] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    if (!role) {
-      setSystem(null)
-      return
-    }
-
-    setLoading(true)
-    const manager = role === 'host' ? hostSystemManager : playerSystemManager
-
-    manager
-      .getSystem()
-      .then((sys) => {
-        setSystem(sys)
-        setLoading(false)
-      })
-      .catch((err) => {
-        console.error('Failed to start system:', err)
-        setLoading(false)
-      })
-  }, [role])
-
-  const handleReset = async () => {
-    if (role === 'host') {
-      await hostSystemManager.destroySystem()
-    } else if (role === 'player') {
-      await playerSystemManager.destroySystem()
-    }
-    setRole(null)
-    setSystem(null)
-  }
-
-  if (!role) {
-    return (
-      <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-        <h1>🧶 Braided React - Singleton Manager</h1>
-        <p style={{ color: '#6b7280', marginBottom: '40px' }}>
-          Systems managed by module-level singletons. Switch roles and see how
-          systems persist.
-        </p>
-        <RoleSelector onSelectRole={setRole} />
-      </div>
-    )
-  }
-
-  if (loading || !system) {
-    return (
-      <div style={{ padding: '40px', textAlign: 'center' }}>
-        <h2>Loading system...</h2>
-      </div>
-    )
-  }
-
-  const Bridge = role === 'host' ? HostSystemBridge : PlayerSystemBridge
-  const View = role === 'host' ? HostView : PlayerView
-
   return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>🧶 Braided React - Singleton Manager</h1>
-      <p style={{ color: '#6b7280', marginBottom: '20px' }}>
-        Current role: <strong>{role}</strong>
+    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
+      <h1 style={{ marginBottom: "10px" }}>
+        🧶 Braided React - Event Bus Communication
+      </h1>
+      <p style={{ color: "#6b7280", marginBottom: "40px" }}>
+        Resources communicate through an event bus, demonstrating loose coupling
+        and coordination outside of React. No resource directly depends on
+        another.
       </p>
 
-      <Bridge system={system}>
-        <View />
-      </Bridge>
-
-      <div style={{ marginTop: '20px' }}>
-        <button
-          onClick={handleReset}
-          style={{
-            padding: '10px 20px',
-            cursor: 'pointer',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-          }}
-        >
-          Reset & Change Role
-        </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <TimerControls />
+        <CounterDisplay />
+        <LoggerDisplay />
+        <EventBusInfo />
       </div>
 
       <div
         style={{
-          marginTop: '40px',
-          padding: '20px',
-          backgroundColor: '#fef3c7',
-          borderRadius: '8px',
+          marginTop: "40px",
+          padding: "20px",
+          backgroundColor: "#fef3c7",
+          borderRadius: "8px",
         }}
       >
-        <h3 style={{ marginTop: 0 }}>💡 Try This:</h3>
+        <h3 style={{ marginTop: 0 }}>💡 Key Concepts:</h3>
         <ol style={{ marginBottom: 0 }}>
-          <li>Select a role and interact with the system</li>
-          <li>Open DevTools console to see system lifecycle logs</li>
-          <li>Notice how the system persists even if you navigate away</li>
-          <li>Click "Reset" to explicitly destroy the system</li>
+          <li>
+            <strong>Event Bus:</strong> Central hub for resource communication
+          </li>
+          <li>
+            <strong>Loose Coupling:</strong> Resources don't directly depend on
+            each other
+          </li>
+          <li>
+            <strong>Pub/Sub Pattern:</strong> Resources emit events, others
+            subscribe
+          </li>
+          <li>
+            <strong>Coordination:</strong> Complex interactions without tight
+            coupling
+          </li>
+          <li>
+            <strong>Observable System:</strong> Logger can observe all events
+            without being invasive
+          </li>
+          <li>Open DevTools console to see detailed event logs</li>
         </ol>
       </div>
     </div>
-  )
+  );
 }
-
-

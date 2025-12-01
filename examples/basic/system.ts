@@ -5,78 +5,112 @@
  * counter and logger with a dependency relationship.
  */
 
-import { defineResource } from 'braided-react/braided'
-import type { StartedResource } from 'braided-react'
+import { defineResource, StartedResource } from "braided";
 
 /**
  * Counter Resource - No dependencies
  *
  * A simple stateful counter that can be incremented.
+ * Uses useSyncExternalStore pattern with subscribe/getSnapshot.
  */
 export const counterResource = defineResource({
   start: () => {
-    console.log('🔢 Counter starting...')
-    let count = 0
+    console.log("🔢 Counter starting...");
+    let count = 0;
+    const listeners = new Set<() => void>();
+
+    const notify = () => {
+      listeners.forEach((listener) => listener());
+    };
 
     return {
-      get count() {
-        return count
+      // For useSyncExternalStore
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
       },
+      getSnapshot() {
+        return count;
+      },
+      // Public API
       increment() {
-        count++
-        console.log(`Counter incremented to ${count}`)
+        count++;
+        console.log(`Counter incremented to ${count}`);
+        notify();
       },
       reset() {
-        count = 0
-        console.log('Counter reset to 0')
+        count = 0;
+        console.log("Counter reset to 0");
+        notify();
       },
-    }
+    };
   },
   halt: (counter) => {
-    console.log(`🔢 Counter halting (final count: ${counter.count})`)
+    console.log(`🔢 Counter halting (final count: ${counter.getSnapshot()})`);
   },
-})
+});
 
 /**
  * Logger Resource - Depends on counter
  *
  * Logs messages and can access the counter to log its current value.
+ * Also uses subscribe/getSnapshot pattern for reactive logs.
  */
-export const loggerResource = defineResource<{
-  counter: StartedResource<typeof counterResource>
-}>({
-  dependencies: ['counter'],
-  start: ({ counter }) => {
-    console.log('📝 Logger starting...')
-    const logs: string[] = []
+export const loggerResource = defineResource({
+  dependencies: ["counter"],
+  start: ({
+    counter,
+  }: {
+    counter: StartedResource<typeof counterResource>;
+  }) => {
+    console.log("📝 Logger starting...");
+    let logs: string[] = [];
+    const listeners = new Set<() => void>();
 
-    return {
-      get logs() {
-        return [...logs]
+    const notify = () => {
+      listeners.forEach((listener) => listener());
+    };
+
+    const logger = {
+      // For useSyncExternalStore
+      subscribe(listener: () => void) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
       },
+      getSnapshot() {
+        // note, this is the same reference, if it were to change, react would enter an infinite loop
+        return logs;
+      },
+      // Public API
       log(message: string) {
-        const timestamp = new Date().toLocaleTimeString()
-        const entry = `[${timestamp}] ${message}`
-        logs.push(entry)
-        console.log(`📝 ${entry}`)
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = `[${timestamp}] ${message}`;
+        logs = [...logs, entry];
+        console.log(`📝 ${entry}`);
+        notify();
       },
       logCount() {
-        const message = `Counter is at ${counter.count}`
-        const timestamp = new Date().toLocaleTimeString()
-        const entry = `[${timestamp}] ${message}`
-        logs.push(entry)
-        console.log(`📝 ${entry}`)
+        const message = `Counter is at ${counter.getSnapshot()}`;
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = `[${timestamp}] ${message}`;
+        logs = [...logs, entry];
+        console.log(`📝 ${entry}`);
+        notify();
       },
       clear() {
-        logs.length = 0
-        console.log('📝 Logs cleared')
+        logs = [];
+        console.log("📝 Logs cleared");
+        notify();
       },
-    }
+    };
+    return logger;
   },
   halt: (logger) => {
-    console.log(`📝 Logger halting (${logger.logs.length} logs recorded)`)
+    console.log(
+      `📝 Logger halting (${logger.getSnapshot().length} logs recorded)`
+    );
   },
-})
+});
 
 /**
  * System Configuration
@@ -87,6 +121,4 @@ export const loggerResource = defineResource<{
 export const systemConfig = {
   counter: counterResource,
   logger: loggerResource,
-}
-
-
+};
