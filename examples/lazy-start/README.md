@@ -74,3 +74,9 @@ function Counter() {
 - You want to coordinate multiple stores
 - Other resources need to react to state changes
 - You're building complex, long-lived applications
+
+## Learn More
+
+- **[Braided](https://github.com/RegiByte/braided)** - The core system composition library
+- **[Braided React](https://github.com/RegiByte/braided-react)** - React integration docs
+- **[All Examples](../)** - See other integration patterns

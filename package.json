@@ -2,7 +2,7 @@
   "name": "braided-react",
   "version": "0.0.2",
   "type": "module",
-  "description": "React integration for Braided - Bridge your stateful systems to React without giving up lifecycle control. React observes, doesn't own.",
+  "description": "React integration for Braided - Bridge your stateful systems to React without giving up lifecycle control. React observes, doesn't own. Minimal, type-safe dependency injection for React.",
   "main": "./dist/index.cjs",
   "scripts": {
     "test": "vitest run",

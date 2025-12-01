@@ -4,8 +4,9 @@ This example demonstrates **resource communication through an event bus**:
 
 1. Resources communicate via events, not direct dependencies
 2. Loose coupling allows resources to evolve independently
-3. Event bus enables observable, coordinated systems
-4. Resources can emit and subscribe to events outside of React
+3. Individual parts can be replaced without the rest of the system knowing
+4. Event bus enables observable, coordinated systems
+5. Resources can emit and subscribe to events outside of React
 
 ## Key Concepts
 
@@ -113,3 +114,9 @@ const counterResource = defineResource({
 ```
 
 Resources communicate through events, not direct calls!
+
+## Learn More
+
+- **[Braided](https://github.com/RegiByte/braided)** - The core system composition library
+- **[Braided React](https://github.com/RegiByte/braided-react)** - React integration docs
+- **[All Examples](../)** - See other integration patterns

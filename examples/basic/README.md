@@ -70,3 +70,9 @@ function Counter() {
 ```
 
 This is the **modern React way** to integrate external state sources!
+
+## Learn More
+
+- **[Braided](https://github.com/RegiByte/braided)** - The core system composition library
+- **[Braided React](https://github.com/RegiByte/braided-react)** - React integration docs
+- **[All Examples](../)** - See other integration patterns

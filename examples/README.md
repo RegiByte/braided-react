@@ -1,6 +1,10 @@
 # 🧶 Braided React Examples
 
-Four complete examples demonstrating modern patterns for integrating Braided systems with React.
+Four complete examples demonstrating modern patterns for integrating [Braided](https://github.com/RegiByte/braided) systems with React.
+
+**What is Braided?** A minimal, type-safe library for declarative system composition with dependency-aware lifecycle management. Think dependency injection + lifecycle management for JavaScript.
+
+**What is Braided React?** The bridge that lets you use Braided systems in React applications without giving up lifecycle control.
 
 ## Examples Overview
 
@@ -237,4 +241,9 @@ All examples follow these principles:
 
 **Untangle your code. Compose your systems. Let React observe.** 🧶
 
-[Main Docs](../README.md) • [npm](https://www.npmjs.com/package/braided-react) • [GitHub](https://github.com/RegiByte/braided-react)
+## Learn More
+
+- **[Braided](https://github.com/RegiByte/braided)** - The core system composition library
+- **[Braided React](https://github.com/RegiByte/braided-react)** - React integration (Main Docs)
+- **[npm: braided](https://www.npmjs.com/package/braided)** - Core library on npm
+- **[npm: braided-react](https://www.npmjs.com/package/braided-react)** - React integration on npm

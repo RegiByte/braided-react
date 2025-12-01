@@ -12,6 +12,7 @@ import { systemConfig } from "./system";
 import { SystemBridge } from "./hooks";
 import { App } from "./App";
 import type { StartedSystem } from "braided";
+import React from "react";
 
 let reactRoot: Root | null = null;
 let system: StartedSystem<typeof systemConfig> | null = null;
@@ -23,10 +24,10 @@ function mountReact() {
   if (reactRoot || !system) return;
 
   console.log("⚛️  Mounting React...");
-  
+
   const rootElement = document.getElementById("root")!;
   reactRoot = createRoot(rootElement);
-  
+
   reactRoot.render(
     <StrictMode>
       <SystemBridge system={system}>
@@ -46,7 +47,7 @@ function unmountReact() {
   if (!reactRoot) return;
 
   console.log("🔴 Unmounting React...");
-  
+
   reactRoot.unmount();
   reactRoot = null;
 
@@ -63,7 +64,9 @@ function unmountReact() {
  */
 function updateControls() {
   const mountBtn = document.getElementById("mount-btn") as HTMLButtonElement;
-  const unmountBtn = document.getElementById("unmount-btn") as HTMLButtonElement;
+  const unmountBtn = document.getElementById(
+    "unmount-btn"
+  ) as HTMLButtonElement;
   const statusText = document.getElementById("status-text")!;
 
   if (reactRoot) {
@@ -144,7 +147,9 @@ async function main() {
 
   // Wire up buttons
   document.getElementById("mount-btn")!.addEventListener("click", mountReact);
-  document.getElementById("unmount-btn")!.addEventListener("click", unmountReact);
+  document
+    .getElementById("unmount-btn")!
+    .addEventListener("click", unmountReact);
 
   // Mount React initially
   mountReact();
@@ -168,4 +173,3 @@ main().catch((error) => {
     </div>
   `;
 });
-
