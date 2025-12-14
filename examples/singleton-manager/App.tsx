@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState, useSyncExternalStore } from "react";
-import { useResource } from "./hooks";
+import { useResource } from "./system";
 
 /**
  * Timer Controls Component

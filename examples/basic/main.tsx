@@ -8,6 +8,7 @@
 import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import React from "react";
 
 /**
  * Mount React - system will start automatically via Suspense
@@ -18,7 +19,9 @@ function main() {
   const root = createRoot(document.getElementById("root")!);
   root.render(
     <StrictMode>
-      <Suspense fallback={<div style={{ padding: "40px" }}>🚀 Starting system...</div>}>
+      <Suspense
+        fallback={<div style={{ padding: "40px" }}>🚀 Starting system...</div>}
+      >
         <App />
       </Suspense>
     </StrictMode>

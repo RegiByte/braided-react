@@ -6,6 +6,7 @@
  */
 
 import { defineResource, StartedResource } from "braided";
+import { createSystemHooks, createSystemManager } from "braided-react";
 
 /**
  * Event Bus Resource
@@ -262,3 +263,7 @@ export const systemConfig = {
   counter: counterResource,
   logger: loggerResource,
 };
+
+export const manager = createSystemManager(systemConfig);
+export const { useSystem, useResource, SystemProvider } =
+  createSystemHooks(manager);

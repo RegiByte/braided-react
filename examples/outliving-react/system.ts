@@ -6,6 +6,7 @@
  */
 
 import { defineResource } from "braided";
+import { createSystemHooks, createSystemManager } from "braided-react";
 
 /**
  * Session Resource
@@ -174,3 +175,15 @@ export const systemConfig = {
   dataStore: dataStoreResource,
   backgroundTask: backgroundTaskResource,
 };
+
+/**
+ * Create manager and hooks for our system configuration.
+ *
+ * These hooks provide full TypeScript inference:
+ * - useResource('counter') returns the exact counter type
+ * - useResource('logger') returns the exact logger type
+ * - useSystem() returns the complete system type
+ */
+export const manager = createSystemManager(systemConfig);
+export const { useSystem, useResource, SystemProvider } =
+  createSystemHooks(manager);

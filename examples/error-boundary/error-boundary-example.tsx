@@ -1,9 +1,9 @@
 /**
  * ErrorBoundary Integration Examples
- * 
+ *
  * This file demonstrates how to use ErrorBoundary with braided-react
  * to handle system startup errors gracefully.
- * 
+ *
  * Install: npm install react-error-boundary
  */
 
@@ -11,6 +11,7 @@ import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { defineResource } from "braided";
 import { createSystemManager, createSystemHooks } from "braided-react";
+import React from "react";
 
 // ============================================================================
 // Example 1: Basic ErrorBoundary with System Startup Errors
@@ -28,6 +29,7 @@ const basicConfig = {
   database: databaseResource,
 };
 
+// @ts-expect-error - Type error
 const basicManager = createSystemManager(basicConfig);
 const { useSystem: useBasicSystem } = createSystemHooks(basicManager);
 
@@ -89,16 +91,16 @@ function MultiApp() {
 function CustomErrorFallback({ error }: { error: Error }) {
   // Parse the error message to extract individual failures
   const errorMessage = error.message;
-  
+
   // Extract individual resource errors
   const resourceErrors: Array<{ resource: string; message: string }> = [];
-  
+
   // Parse format: "System startup failed: api: error1, cache: error2"
   const match = errorMessage.match(/System startup failed: (.+)/);
   if (match) {
     const errorsStr = match[1];
     const parts = errorsStr.split(", ");
-    
+
     parts.forEach((part) => {
       const [resource, ...messageParts] = part.split(": ");
       resourceErrors.push({
@@ -288,7 +290,9 @@ function CriticalFeature() {
 
 function OptionalFeature() {
   return (
-    <div style={{ padding: "20px", background: "#f0fdf4", borderRadius: "8px" }}>
+    <div
+      style={{ padding: "20px", background: "#f0fdf4", borderRadius: "8px" }}
+    >
       <h3>✅ Optional Features</h3>
       <p>These features work even when critical systems fail.</p>
     </div>
@@ -393,7 +397,8 @@ function ProductionErrorFallback({ error }: { error: Error }) {
         Something went wrong
       </h1>
       <p style={{ color: "#6b7280", marginBottom: "30px" }}>
-        We're having trouble starting the application. Our team has been notified.
+        We're having trouble starting the application. Our team has been
+        notified.
       </p>
       <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
         <button
@@ -456,29 +461,28 @@ export function ProductionExample() {
 
 /**
  * Key Patterns:
- * 
+ *
  * 1. Always wrap your app with ErrorBoundary + Suspense:
  *    <ErrorBoundary FallbackComponent={ErrorUI}>
  *      <Suspense fallback={<Loading />}>
  *        <App />
  *      </Suspense>
  *    </ErrorBoundary>
- * 
+ *
  * 2. System startup errors are automatically thrown by useSystem()
  *    - Suspense catches the loading state (thrown Promise)
  *    - ErrorBoundary catches startup failures (thrown Error)
- * 
+ *
  * 3. Error messages include all failed resources:
  *    "System startup failed: api: error1, cache: error2"
- * 
+ *
  * 4. Use nested ErrorBoundaries for graceful degradation:
  *    - Outer boundary for complete failures
  *    - Inner boundaries for optional features
- * 
+ *
  * 5. In production:
  *    - Log errors to tracking service (Sentry, LogRocket)
  *    - Provide user-friendly error messages
  *    - Offer retry/reload options
  *    - Include support contact information
  */
-

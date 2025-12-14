@@ -9,11 +9,10 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { startSystem, haltSystem } from "braided";
 import { systemConfig } from "./system";
-import { SystemProvider } from "./hooks";
+import { SystemProvider } from "./system";
 import { App } from "./App";
 import type { StartedSystem } from "braided";
 import React from "react";
-
 
 let reactRoot: Root | null = null;
 let system: StartedSystem<typeof systemConfig> | null = null;
@@ -29,6 +28,9 @@ function mountReact() {
   const rootElement = document.getElementById("root")!;
   reactRoot = createRoot(rootElement);
 
+  // Note that in this scenario, we are using the SystemProvider to provide the system to the app.
+  // This is not mandatory, in general, resources can be accessed directly when using a singleton manager.
+  // In here, we are using it to demonstrate the pattern.
   reactRoot.render(
     <StrictMode>
       <SystemProvider system={system}>

@@ -8,6 +8,21 @@
 import { defineResource } from "braided";
 import { create } from "zustand";
 
+const slowResource = defineResource({
+  start: () => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve("Slow resource");
+      }, 300); // 300ms to simulate a slow resource
+      // this gives time for the suspense boundary to render
+      // obviously, you should not do this in production
+    });
+  },
+  halt: () => {
+    console.log("Slow resource halted");
+  },
+});
+
 /**
  * Counter Store Resource
  *
@@ -143,4 +158,5 @@ export const systemConfig = {
   counterStore: counterStoreResource,
   todoStore: todoStoreResource,
   logger: loggerResource,
+  // slow: slowResource, // uncomment this to see the suspense boundary
 };

@@ -14,8 +14,8 @@ import { useResource } from "./hooks";
  * Uses the Zustand store from the counterStore resource.
  */
 function Counter() {
-  const counterStore = useResource("counterStore");
-  const { count, increment, decrement, reset } = counterStore.useCounterStore();
+  const { useCounterStore } = useResource("counterStore");
+  const { count, increment, decrement, reset } = useCounterStore();
 
   return (
     <div
