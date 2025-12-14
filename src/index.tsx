@@ -6,41 +6,68 @@
  *
  * Philosophy:
  * - React observes the system, doesn't own it
- * - System lifecycle is managed outside React
- * - Minimal API surface - just primitives for composition
+ * - System lifecycle is managed outside React (closure space)
+ * - Context is optional (only for DI/testing)
+ * - Integrates with React primitives (Suspense, ErrorBoundary)
  *
- * @example
+ * @example Direct access (production):
  * ```typescript
- * import { createSystemHooks } from 'braided-react'
- * import { startSystem } from 'braided'
+ * import { createSystemManager, createSystemHooks } from 'braided-react'
  *
- * const systemConfig = {
- *   database: databaseResource,
- *   api: apiResource,
+ * // system.ts - ONE source of truth
+ * export const manager = createSystemManager(config)
+ * export const { useSystem, useResource, SystemProvider } = createSystemHooks(manager)
+ *
+ * // App.tsx
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<Loading />}>
+ *       <ErrorBoundary FallbackComponent={ErrorScreen}>
+ *         <ChatRoom />
+ *       </ErrorBoundary>
+ *     </Suspense>
+ *   )
  * }
  *
- * // Create typed hooks
- * const { SystemBridge, useResource } = createSystemHooks<typeof systemConfig>()
- *
- * // Start system outside React
- * const { system } = await startSystem(systemConfig)
- *
- * // Bridge to React
- * <SystemBridge system={system}>
- *   <App />
- * </SystemBridge>
- *
- * // Use in components
- * function MyComponent() {
- *   const database = useResource('database')
+ * function ChatRoom() {
+ *   const system = useSystem() // Direct closure access, suspends automatically!
  *   return <div>...</div>
+ * }
+ * ```
+ *
+ * @example Context injection (testing):
+ * ```typescript
+ * import { SystemProvider } from './system'  // Same hooks as production!
+ * import { startSystem } from 'braided'
+ *
+ * test('component works', async () => {
+ *   const mockConfig = { ...config, api: mockApiResource }
+ *   const { system } = await startSystem(mockConfig)
+ *   
+ *   render(
+ *     <SystemProvider system={system}>
+ *       <Component />
+ *     </SystemProvider>
+ *   )
+ * })
+ * ```
+ *
+ * @example Manual control:
+ * ```typescript
+ * import { useSystemStatus } from './system'
+ * 
+ * function App() {
+ *   const { isIdle, isLoading, startSystem } = useSystemStatus()
+ *   
+ *   if (isIdle) return <WelcomeScreen onStart={startSystem} />
+ *   if (isLoading) return <LoadingScreen />
+ *   return <ChatRoom />
  * }
  * ```
  */
 
 export { createSystemHooks } from "./hooks";
 export { createSystemManager } from "./manager";
-export { LazySystemBridge } from "./lazy";
 
 export type { ManagedSystem } from "./manager";
-export type { LazySystemBridgeProps } from "./lazy";
+export type { SystemStatus } from "./hooks";

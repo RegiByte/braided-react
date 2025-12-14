@@ -131,6 +131,7 @@ export function createSystemManager<TConfig extends SystemConfig>(
     getCurrentSystem,
     getStartupErrors,
     isStarted,
+    config, // Expose config for inspection/testing
   };
 }
 

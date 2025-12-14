@@ -37,6 +37,14 @@ describe("createSystemManager", () => {
     expect(manager.getCurrentSystem).toBeDefined();
     expect(manager.getStartupErrors).toBeDefined();
     expect(manager.isStarted).toBeDefined();
+    expect(manager.config).toBeDefined();
+  });
+
+  test("exposes config for inspection", () => {
+    const manager = createSystemManager(testConfig);
+
+    expect(manager.config).toBe(testConfig);
+    expect(manager.config.counter).toBe(counterResource);
   });
 
   test("getSystem starts the system on first call", async () => {

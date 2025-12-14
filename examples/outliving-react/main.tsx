@@ -9,10 +9,11 @@ import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { startSystem, haltSystem } from "braided";
 import { systemConfig } from "./system";
-import { SystemBridge } from "./hooks";
+import { SystemProvider } from "./hooks";
 import { App } from "./App";
 import type { StartedSystem } from "braided";
 import React from "react";
+
 
 let reactRoot: Root | null = null;
 let system: StartedSystem<typeof systemConfig> | null = null;
@@ -30,9 +31,9 @@ function mountReact() {
 
   reactRoot.render(
     <StrictMode>
-      <SystemBridge system={system}>
+      <SystemProvider system={system}>
         <App />
-      </SystemBridge>
+      </SystemProvider>
     </StrictMode>
   );
 

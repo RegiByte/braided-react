@@ -1,7 +1,9 @@
-import { createSystemHooks } from 'braided-react'
+/**
+ * Typed Hooks for the System
+ */
+
+import { createSystemManager, createSystemHooks } from 'braided-react'
 import { systemConfig } from './system'
 
-export const { SystemBridge, useSystem, useResource } =
-  createSystemHooks<typeof systemConfig>()
-
-
+export const manager = createSystemManager(systemConfig)
+export const { useSystem, useResource, SystemProvider } = createSystemHooks(manager)

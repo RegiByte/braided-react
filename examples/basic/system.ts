@@ -17,6 +17,7 @@ export const counterResource = defineResource({
   start: () => {
     console.log("🔢 Counter starting...");
     let count = 0;
+
     const listeners = new Set<() => void>();
 
     const notify = () => {

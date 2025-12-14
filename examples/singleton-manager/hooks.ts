@@ -1,11 +1,9 @@
 /**
- * Typed React Hooks
- *
- * Generated from the system configuration with full type inference.
+ * Typed Hooks for the System
  */
 
-import { createSystemHooks } from "braided-react";
-import type { systemConfig } from "./system";
+import { createSystemManager, createSystemHooks } from 'braided-react'
+import { systemConfig } from './system'
 
-export const { SystemBridge, useSystem, useResource } =
-  createSystemHooks<typeof systemConfig>();
+export const manager = createSystemManager(systemConfig)
+export const { useSystem, useResource, SystemProvider } = createSystemHooks(manager)

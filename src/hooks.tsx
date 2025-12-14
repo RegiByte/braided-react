@@ -5,56 +5,120 @@
  * The system lifecycle is managed outside React - React is just an observer.
  */
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import type { StartedSystem, SystemConfig } from "braided";
+import type { createSystemManager } from "./manager";
 
 /**
- * Creates a set of React hooks for a specific system configuration.
+ * System status for manual control.
+ */
+export type SystemStatus<TConfig extends SystemConfig = any> = {
+  isIdle: boolean; // Not started yet
+  isLoading: boolean; // Starting now
+  isReady: boolean; // Started successfully
+  isError: boolean; // Startup failed
+  system: StartedSystem<TConfig> | null;
+  errors: Map<string, Error> | null;
+  startSystem: () => void; // Trigger startup manually
+};
+
+/**
+ * Creates typed hooks for a system.
  *
- * This is the core primitive of braided-react. It creates:
- * - SystemBridge: A context provider that makes the system available to React
- * - useSystem: Hook to access the entire system
- * - useResource: Hook to access a single resource with full type inference
+ * IMPORTANT: Always pass the manager. Create hooks once at module level
+ * and export them. The SystemProvider is for testing/DI override only.
  *
- * @example
+ * Resolution order:
+ * 1. Context (if SystemProvider is in tree) - for testing/DI
+ * 2. Manager (always provided) - for production
+ *
+ * @param manager - The system manager (REQUIRED)
+ * @returns Hooks and Provider for the system
+ *
+ * @example Setup (once):
  * ```typescript
- * const systemConfig = {
- *   database: databaseResource,
- *   cache: cacheResource,
- *   api: apiResource,
+ * // system.ts
+ * export const manager = createSystemManager(config)
+ * export const { useSystem, useResource, SystemProvider } = createSystemHooks(manager)
+ * ```
+ *
+ * @example Production (automatic with Suspense):
+ * ```typescript
+ * import { useSystem } from './system'
+ *
+ * function App() {
+ *   return (
+ *     <Suspense fallback={<Loading />}>
+ *       <ErrorBoundary FallbackComponent={ErrorScreen}>
+ *         <ChatRoom />
+ *       </ErrorBoundary>
+ *     </Suspense>
+ *   )
  * }
  *
- * const { SystemBridge, useSystem, useResource } = createSystemHooks<typeof systemConfig>()
+ * function ChatRoom() {
+ *   const system = useSystem() // Suspends until ready!
+ *   return <div>...</div>
+ * }
+ * ```
  *
- * // In your app:
- * const started = await startSystem(systemConfig)
+ * @example Testing (context injection):
+ * ```typescript
+ * import { SystemProvider } from './system'  // Same hooks as production!
+ * import { startSystem } from 'braided'
  *
- * <SystemBridge system={started.system}>
- *   <App />
- * </SystemBridge>
+ * test('component works', async () => {
+ *   // Start system with mock resources
+ *   const mockConfig = { ...config, api: mockApiResource }
+ *   const { system } = await startSystem(mockConfig)
  *
- * // In components:
- * function MyComponent() {
- *   const database = useResource('database')
- *   const cache = useResource('cache')
- *   // Both are fully typed!
+ *   render(
+ *     <SystemProvider system={system}>
+ *       <Component />
+ *     </SystemProvider>
+ *   )
+ *
+ *   // Test...
+ *
+ *   await haltSystem(mockConfig, system)
+ * })
+ * ```
+ *
+ * @example Manual control:
+ * ```typescript
+ * import { useSystemStatus } from './system'
+ *
+ * function App() {
+ *   const { isIdle, isLoading, startSystem } = useSystemStatus()
+ *
+ *   if (isIdle) {
+ *     return <WelcomeScreen onStart={startSystem} />
+ *   }
+ *
+ *   if (isLoading) {
+ *     return <LoadingScreen />
+ *   }
+ *
+ *   return <ChatRoom />
  * }
  * ```
  */
-export function createSystemHooks<TConfig extends SystemConfig>() {
+export function createSystemHooks<TConfig extends SystemConfig>(
+  manager: ReturnType<typeof createSystemManager<TConfig>>
+) {
+  // Create context for dependency injection (optional override)
   const SystemContext = createContext<StartedSystem<TConfig> | null>(null);
 
   /**
-   * Bridge component that provides the system to React.
+   * Provider for dependency injection.
    *
-   * IMPORTANT: This component does NOT manage the system lifecycle.
-   * The system must be started externally and passed in.
-   * React is just an observer - it doesn't own the system.
+   * Use this in tests or when you need to override the default manager.
+   * In production, this is optional - hooks will use the manager directly.
    *
-   * @param system - The started system instance
+   * @param system - The started system instance to inject
    * @param children - React children to render
    */
-  function SystemBridge({
+  function SystemProvider({
     system,
     children,
   }: {
@@ -69,18 +133,52 @@ export function createSystemHooks<TConfig extends SystemConfig>() {
   /**
    * Hook to access the entire system.
    *
-   * @throws Error if SystemBridge is not in the component tree
-   * @returns The complete started system with all resources
+   * Resolution order:
+   * 1. Context (if SystemProvider is in tree) - for testing/DI
+   * 2. Manager (default) - for production
+   *
+   * Integrates with React Suspense and ErrorBoundary:
+   * - Suspends (throws promise) while system is starting
+   * - Throws error if system startup failed
+   * - Returns system once ready
+   *
+   * @returns The started system instance
+   * @throws Promise if system is starting (triggers Suspense)
+   * @throws Error if system startup failed (triggers ErrorBoundary)
    */
   function useSystem(): StartedSystem<TConfig> {
-    const system = useContext(SystemContext);
-    if (!system) {
-      throw new Error(
-        "useSystem: SystemBridge is missing in the component tree. " +
-          "Make sure your component is wrapped with <SystemBridge system={...}>."
-      );
+    // Try context first (DI override)
+    const contextSystem = useContext(SystemContext);
+    if (contextSystem) {
+      return contextSystem;
     }
-    return system;
+
+    // Fall back to manager (production path)
+    const current = manager.getCurrentSystem();
+
+    // Already started - check for errors
+    if (current) {
+      const errors = manager.getStartupErrors();
+      if (errors && errors.size > 0) {
+        // Throw error to trigger ErrorBoundary
+        const errorList = Array.from(errors.entries())
+          .map(([id, err]) => `${id}: ${err.message}`)
+          .join(", ");
+        throw new Error(`System startup failed: ${errorList}`);
+      }
+      return current;
+    }
+
+    // Not started yet - start and suspend
+    throw manager.getSystem().then(() => {
+      const errors = manager.getStartupErrors();
+      if (errors && errors.size > 0) {
+        const errorList = Array.from(errors.entries())
+          .map(([id, err]) => `${id}: ${err.message}`)
+          .join(", ");
+        throw new Error(`System startup failed: ${errorList}`);
+      }
+    });
   }
 
   /**
@@ -90,17 +188,8 @@ export function createSystemHooks<TConfig extends SystemConfig>() {
    * of the resource based on the resourceId.
    *
    * @param resourceId - The ID of the resource to access
-   * @throws Error if SystemBridge is not in the component tree
    * @returns The started resource instance, fully typed
-   *
-   * @example
-   * ```typescript
-   * function MyComponent() {
-   *   const database = useResource('database')
-   *   // TypeScript knows database's exact type!
-   *   const users = await database.query('SELECT * FROM users')
-   * }
-   * ```
+   * @throws Same as useSystem (Suspense/ErrorBoundary integration)
    */
   function useResource<K extends keyof TConfig>(
     resourceId: K
@@ -109,9 +198,79 @@ export function createSystemHooks<TConfig extends SystemConfig>() {
     return system[resourceId];
   }
 
+  /**
+   * Hook for manual system startup control.
+   *
+   * Unlike useSystem, this does NOT suspend or throw.
+   * Instead, it returns status and a manual trigger.
+   *
+   * Use this when you want to:
+   * - Show a welcome screen before starting
+   * - Defer startup until user action
+   * - Manually handle loading/error states
+   *
+   * @returns System status and manual start trigger
+   */
+  function useSystemStatus(): SystemStatus<TConfig> {
+    const contextSystem = useContext(SystemContext);
+
+    // If context provided, system is ready
+    if (contextSystem) {
+      return {
+        isIdle: false,
+        isLoading: false,
+        isReady: true,
+        isError: false,
+        system: contextSystem,
+        errors: null,
+        startSystem: () => {}, // No-op, already started
+      };
+    }
+
+    // Otherwise check manager
+    const [status, setStatus] = useState<
+      "idle" | "loading" | "ready" | "error"
+    >(() => {
+      return manager.isStarted() ? "ready" : "idle";
+    });
+
+    const startSystem = useCallback(() => {
+      if (manager.isStarted()) {
+        setStatus("ready");
+        return;
+      }
+
+      setStatus("loading");
+      manager
+        .getSystem()
+        .then(() => {
+          const errors = manager.getStartupErrors();
+          if (errors && errors.size > 0) {
+            setStatus("error");
+          } else {
+            setStatus("ready");
+          }
+        })
+        .catch(() => {
+          setStatus("error");
+        });
+    }, []);
+
+    return {
+      isIdle: status === "idle",
+      isLoading: status === "loading",
+      isReady: status === "ready",
+      isError: status === "error",
+      system: manager.getCurrentSystem(),
+      errors: manager.getStartupErrors(),
+      startSystem,
+    };
+  }
+
   return {
-    SystemBridge,
+    SystemProvider,
     useSystem,
     useResource,
+    useSystemStatus,
   };
 }
